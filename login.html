@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Login</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>Login</h1>
+  <div class="card">
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button id="btnLogin">Login</button>
+    <p style="font-size:13px;margin-top:8px;color:#333;">
+      No account? <a href="register.html">Register</a>
+    </p>
+  </div>
+</div>
+
+<!-- Supabase Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Configuration and Auth Functions -->
+<script src="supabase.js"></script>
+
+<script>
+  // Check if already logged in
+  redirectIfAuthenticated();
+
+  const emailEl = document.getElementById('email');
+  const passwordEl = document.getElementById('password');
+  const btnLogin = document.getElementById('btnLogin');
+
+  btnLogin.addEventListener('click', loginUser);
+
+  async function loginUser() {
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
+
+    if (!email || !password) {
+      alert('Please fill all fields.');
+      return;
+    }
+
+    try {
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Logging in...';
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+
+      if (error) {
+        alert('Login failed: ' + error.message);
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'Login';
+        return;
+      }
+
+      if (data.user) {
+        // Save user to localStorage
+        localStorage.setItem('loggedUser', JSON.stringify(data.user));
+        console.log('Login successful, redirecting...');
+        window.location.href = 'userdashboard.html';
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      alert('Error: ' + err.message);
+      btnLogin.disabled = false;
+      btnLogin.textContent = 'Login';
+    }
+  }
+
+  // Allow Enter key to submit
+  passwordEl.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') loginUser();
+  });
+</script>
+</body>
+</html>

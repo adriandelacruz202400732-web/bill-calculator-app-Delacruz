@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Register</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>Create Account</h1>
+  <div class="card">
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button id="btnRegister">Register</button>
+    <p style="font-size:13px;margin-top:8px;color:#333;">
+      Already have an account? <a href="login.html">Login</a>
+    </p>
+  </div>
+</div>
+
+<!-- Supabase Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Configuration and Auth Functions -->
+<script src="supabase.js"></script>
+
+<script>
+  // Check if already logged in
+  redirectIfAuthenticated();
+
+  const emailEl = document.getElementById('email');
+  const passwordEl = document.getElementById('password');
+  const btnRegister = document.getElementById('btnRegister');
+
+  btnRegister.addEventListener('click', registerUser);
+
+  async function registerUser() {
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
+
+    if (!email || !password) {
+      alert('Please fill all fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      alert('Password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      btnRegister.disabled = true;
+      btnRegister.textContent = 'Creating account...';
+
+      const { data, error } = await supabaseClient.auth.signUp({ 
+        email, 
+        password 
+      });
+
+      if (error) {
+        alert('Registration failed: ' + error.message);
+        btnRegister.disabled = false;
+        btnRegister.textContent = 'Register';
+        return;
+      }
+
+      alert('✓ Registration successful!\n\nPlease check your email for confirmation (if required).\n\nYou can now log in.');
+      emailEl.value = '';
+      passwordEl.value = '';
+      window.location.href = 'login.html';
+    } catch (err) {
+      console.error('Registration error:', err);
+      alert('Error: ' + err.message);
+      btnRegister.disabled = false;
+      btnRegister.textContent = 'Register';
+    }
+  }
+
+  // Allow Enter key to submit
+  passwordEl.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') registerUser();
+  });
+</script>
+</body>
+</html>

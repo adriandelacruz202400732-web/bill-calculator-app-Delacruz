@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Calculator</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body.loading {
+    background-color: #f5f5f5;
+  }
+  .loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 50px;
+    font-size: 18px;
+    color: #666;
+  }
+  body.loading .loading-spinner {
+    display: block;
+  }
+  body.loading .container {
+    display: none;
+  }
+
+  .calculator-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .calculator-card {
+    width: 100%;
+    max-width: 500px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #result {
+    text-align: center;
+    font-size: 24px;
+    color: #d4af37;
+    margin: 20px 0;
+    min-height: 40px;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .button-group button {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+
+  #btnCompute {
+    width: 100%;
+    background-color: #3d3d3d;
+    color: white;
+    margin-bottom: 15px;
+  }
+
+  #btnCompute:hover {
+    background-color: #2d2d2d;
+  }
+
+  #btnSave {
+    background-color: #3d3d3d;
+    color: white;
+  }
+
+  #btnSave:hover {
+    background-color: #2d2d2d;
+  }
+
+  #btnBack {
+    background-color: #666;
+    color: white;
+  }
+
+  #btnBack:hover {
+    background-color: #555;
+  }
+
+  .history-card {
+    width: 100%;
+    max-width: 500px;
+  }
+
+  #historyBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f9f9f9;
+  }
+
+  .history-item:last-child {
+    border-bottom: none;
+  }
+
+  .history-item:hover {
+    background-color: #f0f0f0;
+  }
+
+  .month-label {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .bill-amount {
+    font-weight: bold;
+    color: #d4af37;
+    font-size: 16px;
+  }
+
+  .empty-history {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+  }
+</style>
+</head>
+<body class="loading">
+<div class="loading-spinner">Loading...</div>
+
+<div class="container">
+  <h1>Electricity Bill Calculator</h1>
+  
+  <div class="calculator-wrapper">
+    <!-- CALCULATOR SECTION -->
+    <div class="card calculator-card">
+      <div class="input-group">
+        <input id="prev" type="number" placeholder="Previous Reading" step="0.01">
+        <input id="current" type="number" placeholder="Current Reading" step="0.01">
+        <input id="rate" type="number" placeholder="Rate per kWh" step="0.01">
+      </div>
+
+      <button id="btnCompute">Calculate Bill</button>
+
+      <h3 id="result"></h3>
+
+      <div class="button-group">
+        <button id="btnSave">Save to History</button>
+        <button id="btnBack">Back</button>
+      </div>
+    </div>
+
+    <!-- HISTORY SECTION -->
+    <div class="card history-card">
+      <h2>Billing History</h2>
+      <div id="historyBody" style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <p class="empty-history">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Supabase Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Configuration and Auth Functions -->
+<script src="supabase.js"></script>
+
+<script>
+  // Check authentication on page load
+  async function protectPage() {
+    const user = await initAuth();
+    if (user) {
+      document.body.classList.remove('loading');
+      setupCalculator();
+    }
+  }
+
+  let lastBill = null;
+
+  function setupCalculator() {
+    const prevEl = document.getElementById('prev');
+    const currentEl = document.getElementById('current');
+    const rateEl = document.getElementById('rate');
+    const resultEl = document.getElementById('result');
+    const btnCompute = document.getElementById('btnCompute');
+    const btnSave = document.getElementById('btnSave');
+    const btnBack = document.getElementById('btnBack');
+    const historyBody = document.getElementById('historyBody');
+
+    // Load history when page loads
+    loadHistory();
+
+    btnCompute.addEventListener('click', calculate);
+    btnSave.addEventListener('click', save);
+    btnBack.addEventListener('click', () => {
+      window.location.href = 'userdashboard.html';
+    });
+
+    function calculate() {
+      const p = parseFloat(prevEl.value);
+      const c = parseFloat(currentEl.value);
+      const r = parseFloat(rateEl.value);
+
+      if (isNaN(p) || isNaN(c) || isNaN(r)) {
+        alert('Please fill all fields with valid numbers.');
+        return;
+      }
+
+      if (c < p) {
+        alert('Current reading must be greater than or equal to previous reading.');
+        return;
+      }
+
+      const kwh = c - p;
+      const total = kwh * r;
+
+      lastBill = total;
+      resultEl.textContent = `₱ ${total.toFixed(2)}`;
+    }
+
+    async function save() {
+      if (lastBill === null) {
+        alert('Please calculate first.');
+        return;
+      }
+
+      const month = prompt('Enter Month (ex: January 2025):');
+      if (!month || month.trim() === '') return;
+
+      const logged = JSON.parse(localStorage.getItem('loggedUser') || 'null');
+      if (!logged) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const user_id = logged.id;
+
+      try {
+        const { error } = await supabaseClient
+          .from('billing')
+          .insert([{ 
+            user_id: user_id, 
+            month: month, 
+            bill: lastBill 
+          }]);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          alert('Error saving: ' + error.message);
+          return;
+        }
+
+        alert('✓ Saved successfully!');
+        
+        // Clear form
+        prevEl.value = '';
+        currentEl.value = '';
+        rateEl.value = '';
+        resultEl.textContent = '';
+        lastBill = null;
+        
+        // Refresh history
+        await loadHistory();
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const logged = JSON.parse(localStorage.getItem('loggedUser') || 'null');
+        if (!logged) {
+          historyBody.innerHTML = '<p class="empty-history">Please log in to view history</p>';
+          return;
+        }
+
+        const user_id = logged.id;
+
+        const { data, error } = await supabaseClient
+          .from('billing')
+          .select('month, bill')
+          .eq('user_id', user_id)
+          .order('id', { ascending: false });
+
+        if (error) {
+          console.error('Error loading history:', error);
+          historyBody.innerHTML = '<p class="empty-history" style="color: red;">Error loading history</p>';
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          historyBody.innerHTML = '<p class="empty-history">No billing records yet</p>';
+          return;
+        }
+
+        historyBody.innerHTML = '';
+        data.forEach(item => {
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'history-item';
+          itemDiv.innerHTML = `
+            <span class="month-label">${item.month}</span>
+            <span class="bill-amount">₱ ${parseFloat(item.bill).toFixed(2)}</span>
+          `;
+          historyBody.appendChild(itemDiv);
+        });
+      } catch (err) {
+        console.error('Error:', err);
+        historyBody.innerHTML = '<p class="empty-history" style="color: red;">Error</p>';
+      }
+    }
+  }
+
+  protectPage();
+</script>
+
+</body>
+</html>

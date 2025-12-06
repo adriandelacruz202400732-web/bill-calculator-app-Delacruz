@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Results</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body.loading {
+    background-color: #f5f5f5;
+  }
+  .loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 50px;
+    font-size: 18px;
+    color: #666;
+  }
+  body.loading .loading-spinner {
+    display: block;
+  }
+  body.loading .container {
+    display: none;
+  }
+</style>
+</head>
+<body class="loading">
+<div class="loading-spinner">Loading...</div>
+
+<div class="container">
+  <h1>Billing History</h1>
+  <div class="card" id="list"></div>
+</div>
+
+<!-- Supabase Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Configuration and Auth Functions -->
+<script src="supabase.js"></script>
+
+<script>
+  async function protectPage() {
+    const user = await initAuth();
+    if (user) {
+      document.body.classList.remove('loading');
+      loadHistory();
+    }
+  }
+
+  async function loadHistory() {
+    const list = document.getElementById('list');
+    list.innerHTML = '<p style="text-align: center;">Loading history...</p>';
+
+    try {
+      const logged = JSON.parse(localStorage.getItem('loggedUser') || 'null');
+      if (!logged) {
+        list.innerHTML = '<p style="text-align: center;"><a href="login.html">Please log in to view history</a></p>';
+        return;
+      }
+
+      const user_id = logged.id;
+
+      const { data, error } = await supabaseClient
+        .from('billing')
+        .select('month, bill')
+        .eq('user_id', user_id)
+        .order('id', { ascending: false });
+
+      if (error) {
+        console.error('Error loading history:', error);
+        list.innerHTML = `<p style="text-align: center; color: red;">Error: ${error.message}</p>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        list.innerHTML = '<p style="text-align: center; color: #999;">No billing records yet</p>';
+        return;
+      }
+
+      list.innerHTML = '';
+      data.forEach(row => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee;';
+        div.innerHTML = `
+          <strong>${row.month}</strong>
+          <span style="color: #d4af37; font-weight: bold;">₱ ${parseFloat(row.bill).toFixed(2)}</span>
+        `;
+        list.appendChild(div);
+      });
+    } catch (err) {
+      console.error('Error:', err);
+      list.innerHTML = `<p style="text-align: center; color: red;">Error: ${err.message}</p>`;
+    }
+  }
+
+  protectPage();
+</script>
+</body>
+</html>
+	
